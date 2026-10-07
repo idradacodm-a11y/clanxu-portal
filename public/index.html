@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ClanXU — XTREME UNIT</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+:root{
+  --bg:#050507;--panel:#0d0d12;--border:#2a1015;--red:#ff1e2d;--gold:#ffb800;
+  --text:#f0e6d8;--muted:#8a7a6a;--green:#3dd68c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.screen{display:none;min-height:100vh;padding:16px}
+.screen.active{display:block}
+.logo-wrap{text-align:center;padding:28px 12px 12px}
+.logo{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:800;letter-spacing:4px;
+  background:linear-gradient(90deg,var(--red),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:brightness(1);text-shadow:0 0 20px rgba(255,30,45,.3)}50%{filter:brightness(1.15);text-shadow:0 0 28px rgba(255,184,0,.4)}}
+.threat{font-family:'Orbitron',sans-serif;font-size:.72rem;color:var(--red);letter-spacing:1px;text-align:center;margin:8px 0 4px;opacity:.9}
+.tag{text-align:center;color:var(--gold);font-size:.8rem;letter-spacing:2px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin:0 auto 14px;max-width:480px}
+input,select,textarea{width:100%;background:#0a0a0e;border:1px solid #3a2025;color:var(--text);padding:12px;border-radius:8px;font-family:inherit;font-size:1rem;margin-bottom:10px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red)}
+button{width:100%;border:none;border-radius:8px;padding:13px;font-family:'Orbitron',sans-serif;font-weight:700;font-size:.85rem;letter-spacing:1px;cursor:pointer}
+.btn-red{background:linear-gradient(135deg,#ff1e2d,#c41420);color:#fff}
+.btn-gold{background:linear-gradient(135deg,#ffb800,#c99000);color:#111}
+.btn-ghost{background:#15151c;color:var(--text);border:1px solid #333}
+.err{color:var(--red);text-align:center;font-size:.9rem;margin-top:8px}
+.ok{color:var(--green);text-align:center;font-size:.9rem;margin-top:8px}
+/* APP SHELL */
+#app{display:none;flex-direction:column;height:100vh}
+#app.active{display:flex}
+.topbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#0a0a0e}
+.topbar .brand{font-family:'Orbitron',sans-serif;font-size:.95rem;color:var(--gold);letter-spacing:2px}
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);background:#0a0a0e;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;padding:12px 16px;font-family:'Orbitron',sans-serif;font-size:.68rem;letter-spacing:1px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--red);border-bottom-color:var(--red)}
+.panel{display:none;flex:1;overflow-y:auto;padding:12px}
+.panel.on{display:block}
+/* CHAT */
+#chatBox{height:calc(100vh - 220px);overflow-y:auto;padding:8px;background:#08080c;border-radius:8px;margin-bottom:8px}
+.msg{margin-bottom:10px;padding:8px 10px;background:#111116;border-radius:8px;border-left:3px solid #333}
+.msg .who{font-size:.75rem;color:var(--gold);font-weight:700}
+.msg .meta{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.msg .body{margin-top:4px;word-break:break-word}
+.msg.admin{border-left-color:var(--red)}
+.chat-bar{display:flex;gap:6px}
+.chat-bar input{margin:0;flex:1}
+.chat-bar button{width:auto;padding:12px 14px}
+/* ROSTER */
+.member{display:flex;gap:10px;align-items:center;padding:10px;background:#111116;border-radius:8px;margin-bottom:8px;cursor:pointer;border:1px solid transparent}
+.member:hover{border-color:var(--border)}
+.av{width:42px;height:42px;border-radius:50%;background:#222;object-fit:cover;border:2px solid var(--border)}
+.rank-badge{font-size:.65rem;padding:2px 6px;border-radius:4px;background:#1a1200;color:var(--gold);border:1px solid #5a4010}
+/* PROFILE */
+.preview{max-width:100%;max-height:160px;border-radius:8px;margin:6px 0;border:1px solid var(--border)}
+/* MAIL */
+.mail-item{background:#111116;padding:12px;border-radius:8px;margin-bottom:8px;border-left:3px solid var(--gold)}
+.mail-item button{width:auto;display:inline-block;padding:8px 12px;margin:4px 4px 0 0;font-size:.7rem}
+/* ADMIN */
+.admin-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.admin-row input,.admin-row select{margin:0;flex:1;min-width:100px}
+.admin-row button{width:auto;padding:10px 12px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate" class="screen active">
+  <div class="logo-wrap">
+    <div class="logo">CLAN XU</div>
+    <div class="threat">WE DON'T PLAY TO WIN. WE PLAY TO MAKE YOU REMEMBER US.</div>
+    <div class="tag">XTREME UNIT · ONE NAME. ONE FORCE.</div>
+  </div>
+  <div class="card" id="keyCard">
+    <input id="clanKey" placeholder="Clan Key" autocomplete="off">
+    <button class="btn-red" onclick="checkKey()">ENTER</button>
+    <div id="keyErr" class="err"></div>
+  </div>
+  <div class="card hidden" id="roleCard">
+    <select id="rolePick">
+      <option value="member">Member</option>
+      <option value="tryouter">Tryouter</option>
+    </select>
+    <input id="ign" placeholder="Your IGN / Name" autocomplete="off">
+    <button class="btn-gold" onclick="requestJoin()">REQUEST JOIN</button>
+    <div id="joinMsg" class="ok"></div>
+    <div id="joinErr" class="err"></div>
+  </div>
+  <div class="card hidden" id="waitCard">
+    <div style="text-align:center;color:var(--gold)">Waiting for admin approval...</div>
+    <div style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:8px">Keep this open. You will enter automatically.</div>
+    <button class="btn-ghost" style="margin-top:12px" onclick="tryEnter()">I WAS APPROVED — ENTER</button>
+  </div>
+  <div class="card">
+    <button class="btn-ghost" onclick="showAdminLogin()">ADMIN LOGIN</button>
+    <div id="adminLoginBox" class="hidden" style="margin-top:10px">
+      <input id="adminPass" type="password" placeholder="Admin Password">
+      <button class="btn-red" onclick="adminLogin()">LOGIN AS ADMIN</button>
+      <div id="adminErr" class="err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="brand">CLAN XU</div>
+    <div id="whoami" style="font-size:.8rem;color:var(--muted)"></div>
+  </div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-p="chat">CHAT</div>
+    <div class="tab" data-p="rank">RANKING</div>
+    <div class="tab" data-p="profile">PROFILE</div>
+    <div class="tab" data-p="tryout">TRYOUT</div>
+    <div class="tab" data-p="invite">INVITE</div>
+    <div class="tab admin-only hidden" data-p="mail">MAIL</div>
+    <div class="tab admin-only hidden" data-p="admin">ADMIN</div>
+  </div>
+
+  <div id="p-chat" class="panel on">
+    <div id="chatBox"></div>
+    <div class="chat-bar">
+      <input id="chatInput" placeholder="Message..." maxlength="500">
+      <button class="btn-red" onclick="sendChat()">SEND</button>
+      <button class="btn-ghost" id="recBtn" onclick="toggleRec()">REC</button>
+    </div>
+  </div>
+
+  <div id="p-rank" class="panel">
+    <div id="roster"></div>
+  </div>
+
+  <div id="p-profile" class="panel">
+    <div class="card" style="max-width:100%">
+      <input id="pfUid" placeholder="CODM UID">
+      <select id="pfRank"></select>
+      <input id="pfHud" placeholder="HUD Code">
+      <input id="pfSensi" placeholder="Sensitivity Code">
+      <label style="font-size:.8rem;color:var(--muted)">Profile Picture</label>
+      <input type="file" id="pfAvatar" accept="image/*">
+      <img id="avPrev" class="preview hidden">
+      <label style="font-size:.8rem;color:var(--muted)">Collection Screenshot</label>
+      <input type="file" id="pfCol" accept="image/*">
+      <img id="colPrev" class="preview hidden">
+      <input id="pfColLink" placeholder="Or paste Imgur link for collection">
+      <button class="btn-gold" onclick="saveProfile()">SAVE PROFILE</button>
+      <div id="pfMsg" class="ok"></div>
+    </div>
+  </div>
+
+  <div id="p-tryout" class="panel">
+    <div class="card" style="max-width:100%">
+      <input id="tyIgn" placeholder="IGN">
+      <input id="tyUid" placeholder="UID">
+      <select id="tyRank"></select>
+      <input id="tyPlace" placeholder="Role / Placement">
+      <input id="tyHud" placeholder="HUD Code">
+      <input id="tySensi" placeholder="Sensitivity Code">
+      <textarea id="tyReason" rows="3" placeholder="Why join ClanXU?"></textarea>
+      <button class="btn-red" onclick="submitTryout()">SUBMIT TRYOUT</button>
+      <div id="tyMsg" class="ok"></div>
+    </div>
+  </div>
+
+  <div id="p-invite" class="panel">
+    <div class="card" style="max-width:100%">
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">Share this link with recruits:</div>
+      <input id="inviteLink" readonly>
+      <button class="btn-gold" onclick="copyInvite()">COPY INVITE LINK</button>
+    </div>
+  </div>
+
+  <div id="p-mail" class="panel">
+    <div id="mailbox"></div>
+  </div>
+
+  <div id="p-admin" class="panel">
+    <div class="card" style="max-width:100%">
+      <div style="color:var(--gold);font-family:Orbitron,sans-serif;font-size:.75rem;margin-bottom:8px">BROADCAST</div>
+      <input id="annText" placeholder="Announcement...">
+      <button class="btn-red" onclick="announce()">SEND ANNOUNCEMENT</button>
+    </div>
+    <div class="card" style="max-width:100%">
+      <div style="color:var(--gold);font-family:Orbitron,sans-serif;font-size:.75rem;margin-bottom:8px">ROSTER ACTIONS</div>
+      <div class="admin-row">
+        <select id="adUser"></select>
+        <input id="adNewName" placeholder="New name">
+        <button class="btn-ghost" onclick="renameUser()">RENAME</button>
+      </div>
+      <div class="admin-row">
+        <button class="btn-gold" onclick="promoteUser()">PROMOTE TRYOUTER</button>
+        <button class="btn-red" onclick="kickUser()">KICK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let me = null, isAdmin = false, ranks = [];
+let mediaRec = null, recChunks = [], recording = false;
+
+const params = new URLSearchParams(location.search);
+const invitedBy = params.get("invite") || "";
+
+// restore
+const savedKey = localStorage.getItem("clanx_key");
+const savedName = localStorage.getItem("clanx_name");
+const savedAdmin = localStorage.getItem("clanx_admin") === "1";
+
+function show(el){document.getElementById(el).classList.remove("hidden")}
+function hide(el){document.getElementById(el).classList.add("hidden")}
+
+function checkKey(){
+  const key = document.getElementById("clanKey").value.trim();
+  socket.emit("check-key", key, (r)=>{
+    if(!r.ok){document.getElementById("keyErr").textContent="Wrong Clan Key";return}
+    localStorage.setItem("clanx_key", key);
+    hide("keyCard"); show("roleCard");
+    if(savedName){document.getElementById("ign").value=savedName; tryEnter()}
+  });
+}
+
+function requestJoin(){
+  const name = document.getElementById("ign").value.trim();
+  const role = document.getElementById("rolePick").value;
+  document.getElementById("joinErr").textContent="";
+  socket.emit("request-join",{name,role,invitedBy}, (r)=>{
+    if(!r.ok){document.getElementById("joinErr").textContent=r.error||"Failed";return}
+    localStorage.setItem("clanx_name", name);
+    hide("roleCard"); show("waitCard");
+  });
+}
+
+function tryEnter(){
+  const name = localStorage.getItem("clanx_name") || document.getElementById("ign").value.trim();
+  if(!name) return;
+  socket.emit("enter",{name}, (r)=>{
+    if(!r.ok) return;
+    me = r.user; isAdmin = r.isAdmin;
+    localStorage.setItem("clanx_name", me.name);
+    localStorage.setItem("clanx_admin", isAdmin?"1":"0");
+    enterApp();
+  });
+}
+
+function showAdminLogin(){show("adminLoginBox")}
+function adminLogin(){
+  const pass = document.getElementById("adminPass").value;
+  socket.emit("admin-login", pass, (r)=>{
+    if(!r.ok){document.getElementById("adminErr").textContent=r.error||"Fail";return}
+    isAdmin = true;
+    localStorage.setItem("clanx_admin","1");
+    if(me) enterApp();
+    else {
+      // admin can still need a name in roster — use Admin
+      localStorage.setItem("clanx_name","Admin");
+      socket.emit("request-join",{name:"Admin",role:"member"},()=>{
+        socket.emit("approve-user","Admin",()=>{
+          socket.emit("enter",{name:"Admin"},(r)=>{
+            if(r.ok){me=r.user;isAdmin=true;enterApp()}
+          });
+        });
+      });
+    }
+  });
+}
+
+function enterApp(){
+  document.getElementById("gate").classList.remove("active");
+  document.getElementById("app").classList.add("active");
+  document.getElementById("whoami").textContent = me.name + (isAdmin?" · ADMIN":" · "+me.role);
+  document.querySelectorAll(".admin-only").forEach(e=>{
+    if(isAdmin) e.classList.remove("hidden"); else e.classList.add("hidden");
+  });
+  // profile fill
+  document.getElementById("pfUid").value = me.uid||"";
+  document.getElementById("pfHud").value = me.hud||"";
+  document.getElementById("pfSensi").value = me.sensi||"";
+  const rs = document.getElementById("pfRank");
+  const ts = document.getElementById("tyRank");
+  rs.innerHTML = ts.innerHTML = ranks.map(r=>`<option ${r===(me.rank||"Rookie")?"selected":""}>${r}</option>`).join("");
+  document.getElementById("inviteLink").value = location.origin + "/?invite=" + encodeURIComponent(me.name);
+  if(isAdmin) socket.emit("get-mailbox");
+}
+
+// tabs
+document.getElementById("tabs").onclick = (e)=>{
+  const t = e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");
+  document.getElementById("p-"+t.dataset.p).classList.add("on");
+};
+
+socket.on("ranks", r=>{ranks=r});
+socket.on("roster", list=>{
+  const box = document.getElementById("roster");
+  const sel = document.getElementById("adUser");
+  box.innerHTML = list.map(u=>`
+    <div class="member" onclick='showMember(${JSON.stringify(u).replace(/'/g,"&#39;")})'>
+      <img class="av" src="${u.avatar||"data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2242%22 height=%2242%22><rect fill=%22%23222%22 width=%2242%22 height=%2242%22/></svg>"}">
+      <div>
+        <div style="font-weight:700">${u.name} ${u.isAdmin?"<span style=color:var(--red)>ADMIN</span>":""}</div>
+        <span class="rank-badge">${u.rank}</span>
+        <span style="font-size:.7rem;color:var(--muted);margin-left:6px">${u.role}</span>
+      </div>
+    </div>`).join("");
+  if(sel) sel.innerHTML = list.map(u=>`<option value="${u.name}">${u.name}</option>`).join("");
+});
+
+function showMember(u){
+  alert(`${u.name}\nRank: ${u.rank}\nUID: ${u.uid||"—"}\nHUD: ${u.hud||"—"}\nSensi: ${u.sensi||"—"}\nInvited by: ${u.invitedBy||"—"}`);
+}
+
+socket.on("chat-history", list=>{
+  const box=document.getElementById("chatBox"); box.innerHTML="";
+  list.forEach(addMsg);
+  box.scrollTop=box.scrollHeight;
+});
+socket.on("chat-message", m=>{addMsg(m); const box=document.getElementById("chatBox"); box.scrollTop=box.scrollHeight});
+socket.on("delete-message", id=>{const el=document.getElementById("m-"+id); if(el) el.remove()});
+
+function addMsg(m){
+  const box=document.getElementById("chatBox");
+  const div=document.createElement("div");
+  div.className="msg"+(m.role==="admin"||m.name==="Admin"?" admin":"");
+  div.id="m-"+m.id;
+  const time=new Date(m.time).toLocaleTimeString();
+  let body = m.type==="voice" ? `<audio controls src="${m.voice}" style="width:100%;margin-top:4px"></audio>` : escapeHtml(m.text);
+  div.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="meta">${time}</div><div class="body">${body}</div>`+
+    (isAdmin?`<button class="btn-ghost" style="width:auto;padding:4px 8px;font-size:.65rem;margin-top:4px" onclick="delMsg('${m.id}')">DELETE</button>`:"");
+  box.appendChild(div);
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]))}
+function sendChat(){
+  const t=document.getElementById("chatInput").value.trim(); if(!t) return;
+  socket.emit("chat-message",{type:"text",text:t});
+  document.getElementById("chatInput").value="";
+}
+function delMsg(id){socket.emit("delete-message",id)}
+
+async function toggleRec(){
+  if(recording){mediaRec.stop();recording=false;document.getElementById("recBtn").textContent="REC";return}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[];
+    mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=e=>recChunks.push(e.data);
+    mediaRec.onstop=()=>{
+      const blob=new Blob(recChunks,{type:"audio/webm"});
+      const reader=new FileReader();
+      reader.onload=()=>socket.emit("chat-message",{type:"voice",voice:reader.result});
+      reader.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    mediaRec.start(); recording=true;
+    document.getElementById("recBtn").textContent="STOP";
+  }catch(e){alert("Mic blocked")}
+}
+
+function fileToData(input, cb){
+  const f=input.files[0]; if(!f) return cb("");
+  if(f.size>2e6){alert("Max 2MB"); return cb("")}
+  const r=new FileReader(); r.onload=()=>cb(r.result); r.readAsDataURL(f);
+}
+document.getElementById("pfAvatar").onchange=function(){fileToData(this,d=>{const i=document.getElementById("avPrev"); if(d){i.src=d;i.classList.remove("hidden")} })}
+document.getElementById("pfCol").onchange=function(){fileToData(this,d=>{const i=document.getElementById("colPrev"); if(d){i.src=d;i.classList.remove("hidden")} })}
+
+function saveProfile(){
+  const avatar = document.getElementById("avPrev").classList.contains("hidden")? (me.avatar||"") : document.getElementById("avPrev").src;
+  let collection = document.getElementById("colPrev").classList.contains("hidden")? (me.collection||"") : document.getElementById("colPrev").src;
+  const link=document.getElementById("pfColLink").value.trim();
+  if(link) collection=link;
+  socket.emit("save-profile",{
+    uid:document.getElementById("pfUid").value,
+    rank:document.getElementById("pfRank").value,
+    hud:document.getElementById("pfHud").value,
+    sensi:document.getElementById("pfSensi").value,
+    avatar, collection
+  }, r=>{
+    if(r.ok){me=r.user; document.getElementById("pfMsg").textContent="Saved"}
+  });
+}
+
+function submitTryout(){
+  socket.emit("submit-tryout",{
+    ign:document.getElementById("tyIgn").value||me?.name,
+    uid:document.getElementById("tyUid").value,
+    rank:document.getElementById("tyRank").value,
+    placement:document.getElementById("tyPlace").value,
+    hud:document.getElementById("tyHud").value,
+    sensi:document.getElementById("tySensi").value,
+    reason:document.getElementById("tyReason").value
+  }, r=>{ if(r.ok) document.getElementById("tyMsg").textContent="Submitted — wait for admin" });
+}
+
+function copyInvite(){
+  const el=document.getElementById("inviteLink");
+  el.select(); document.execCommand("copy");
+  alert("Copied");
+}
+
+socket.on("mailbox", mb=>{
+  if(!isAdmin) return;
+  const box=document.getElementById("mailbox");
+  let html="";
+  (mb.joins||[]).forEach(j=>{
+    html+=`<div class="mail-item"><b>JOIN</b> ${j.name} (${j.role}) ${j.invitedBy?"invited by "+j.invitedBy:""}<br>
+      <button class="btn-gold" onclick="approve('${j.name}')">ACCEPT</button>
+      <button class="btn-red" onclick="deny('${j.name}')">DENY</button></div>`;
+  });
+  (mb.tryouts||[]).forEach(t=>{
+    html+=`<div class="mail-item"><b>TRYOUT</b> ${t.ign} · ${t.rank} · ${t.placement}<br>${t.reason||""}<br>
+      <button class="btn-gold" onclick="approveTryout('${t.id}')">ACCEPT</button>
+      <button class="btn-red" onclick="denyTryout('${t.id}')">DENY</button></div>`;
+  });
+  box.innerHTML = html || "<div style='color:var(--muted)'>No pending items</div>";
+});
+function approve(n){socket.emit("approve-user",n)}
+function deny(n){socket.emit("deny-user",n)}
+function approveTryout(id){socket.emit("approve-tryout",id)}
+function denyTryout(id){socket.emit("deny-tryout",id)}
+
+function announce(){
+  const t=document.getElementById("annText").value.trim(); if(!t) return;
+  socket.emit("announce", t); document.getElementById("annText").value="";
+}
+socket.on("announce", a=>alert("ANNOUNCEMENT:\n"+a.text));
+
+function renameUser(){
+  const oldName=document.getElementById("adUser").value;
+  const newName=document.getElementById("adNewName").value.trim();
+  socket.emit("rename-user",{oldName,newName});
+}
+function kickUser(){socket.emit("kick-user", document.getElementById("adUser").value)}
+function promoteUser(){socket.emit("promote-tryouter", document.getElementById("adUser").value)}
+
+socket.on("user-approved", ({name})=>{
+  if(localStorage.getItem("clanx_name")===name) tryEnter();
+});
+socket.on("kicked", ({name})=>{
+  if(me && me.name===name){alert("You were kicked"); location.reload()}
+});
+
+// boot
+if(savedKey){
+  document.getElementById("clanKey").value=savedKey;
+  checkKey();
+}
+</script>
+</body>
+</html>
